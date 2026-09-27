@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Reps — Pushups &amp; Squats</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#15130f; --surface:#1c1912; --surface-2:#241f17; --line:#332c1f;
+    --ink:#f5f1e6; --sub:#a89d87; --sub-dim:#6c6353;
+    --brass:#c9a15a; --brass-soft:rgba(201,161,90,.16);
+    --clay:#c1603f; --clay-soft:rgba(193,96,63,.16);
+    --stone:#8f8672;
+    --focus:#c9a15a;
+    --warn:#c1603f;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+    -webkit-font-smoothing:antialiased;
+  }
+  :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+
+  .wrap{max-width:1180px; margin:0 auto; padding:26px 34px 40px;}
+  @media (max-width:760px){ .wrap{padding:18px;} }
+
+  .topbar{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;}
+  .topbar .d{font-size:13px; color:var(--sub);}
+  .topbar .d b{color:var(--ink); font-weight:600;}
+  .topbar .streak{font-family:'Space Mono',monospace; font-size:13px; color:var(--brass);}
+
+  .banner{display:none; align-items:center; gap:8px; background:var(--clay-soft); border:1px solid var(--clay);
+    color:var(--ink); font-size:12.5px; padding:9px 14px; border-radius:8px; margin-bottom:16px;}
+  .banner.show{display:flex;}
+
+  .stabs{display:flex; gap:30px; border-bottom:1px solid var(--line); margin-bottom:26px;}
+  .stabs button{
+    background:none; border:none; color:var(--sub); font-family:'Inter',sans-serif;
+    font-size:16px; font-weight:600; padding:0 0 14px; cursor:pointer; border-bottom:2px solid transparent;
+    margin-bottom:-1px;
+  }
+  .stabs button.active{color:var(--ink); border-bottom-color:var(--brass);}
+
+  .section{display:none;}
+  .section.active{display:block;}
+
+  .hero{display:flex; align-items:baseline; gap:18px; flex-wrap:wrap; margin-bottom:26px;}
+  .hero .eq{font-family:'Fraunces',serif; font-weight:600; font-size:46px; letter-spacing:-.5px;}
+  .hero .eq .ans{color:var(--brass);}
+  .hero .eq .op{color:var(--sub-dim); font-weight:500; margin:0 6px;}
+
+  .stat{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:22px 26px 20px; margin-bottom:26px;}
+  .stat h3{margin:0 0 20px; font-size:13px; font-weight:600; color:var(--sub); letter-spacing:.2px;}
+  .bignums{display:flex; gap:36px; flex-wrap:wrap; margin-bottom:22px;}
+  .bignums .bn .v{font-family:'Space Mono',monospace; font-weight:700; font-size:32px; line-height:1;}
+  .bignums .bn .l{font-size:12px; color:var(--sub); margin-top:6px;}
+  .bignums .gapcallout{margin-left:auto; text-align:right; align-self:center; padding-left:20px; border-left:1px solid var(--line);}
+  .bignums .gapcallout .v{font-family:'Space Mono',monospace; font-weight:700; font-size:20px; color:var(--sub);}
+  .bignums .gapcallout .l{font-size:11.5px; color:var(--sub-dim); margin-top:3px;}
+  .strack{position:relative; height:5px; background:var(--surface-2); border-radius:99px; margin:0 4px;}
+  .tick{position:absolute; top:50%; width:9px; height:9px; border-radius:50%; transform:translate(-50%,-50%); border:2px solid var(--bg);}
+  .tick.days{background:var(--ink); z-index:3;}
+  .tick.ideal{background:var(--stone); z-index:1;}
+  .tick.actual{background:var(--brass); z-index:2;}
+
+  .cards{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
+  @media (max-width:700px){ .cards{grid-template-columns:1fr;} }
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px 22px;}
+  .card .exname{font-size:15px; font-weight:700;}
+  .card .sub{font-size:11.5px; color:var(--sub); margin-top:2px;}
+  .card .targetnum{font-family:'Space Mono',monospace; font-weight:700; font-size:38px; margin:10px 0 12px; line-height:1;}
+  .card.push .targetnum{color:var(--brass);}
+  .card.sq .targetnum{color:var(--clay);}
+
+  .track{height:6px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-bottom:8px;}
+  .track i{display:block; height:100%; border-radius:99px;}
+  .card.push .track i{background:var(--brass);}
+  .card.sq .track i{background:var(--clay);}
+  .progtext{display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:12.5px; color:var(--sub);}
+  .progtext .done{color:var(--ink);}
+
+  .logrow{display:flex; gap:8px; margin-top:14px;}
+  .logrow input{
+    width:82px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
+    font-family:'Space Mono',monospace; font-size:15px; font-weight:700; text-align:center;
+    border-radius:8px; padding:10px 4px;
+  }
+  .logrow button{
+    flex:1; border:none; border-radius:8px; font:inherit; font-size:13.5px; font-weight:700; cursor:pointer;
+  }
+  .card.push .logrow button{background:var(--brass); color:#1e1608;}
+  .card.sq .logrow button{background:var(--clay); color:#1f0d06;}
+  .logrow button:disabled{background:var(--surface-2); color:var(--sub-dim); cursor:default;}
+
+  .missed{font-size:11.5px; color:var(--sub-dim); margin-top:12px;}
+  .missed b{color:var(--sub); font-family:'Space Mono',monospace; font-weight:700;}
+
+  .monthchips{display:flex; gap:6px; flex-wrap:wrap; margin-bottom:16px;}
+  .monthchips button{
+    background:var(--surface); border:1px solid var(--line); color:var(--sub);
+    font:inherit; font-size:12.5px; font-weight:600; padding:8px 14px; border-radius:8px; cursor:pointer;
+  }
+  .monthchips button.active{background:var(--brass-soft); color:var(--brass); border-color:var(--brass);}
+  .monthchips button:disabled{opacity:.35; cursor:default;}
+
+  .chartpanel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px 22px 8px;}
+  .legend{display:flex; gap:20px; font-size:12px; color:var(--sub); margin-bottom:8px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .sw{width:10px; height:10px; border-radius:3px; display:inline-block;}
+  .sw.ideal{background:var(--stone);}
+  .sw.push{background:var(--brass);}
+  .sw.sq{background:var(--clay);}
+  svg.chart{width:100%; height:auto; display:block;}
+  .chartview{display:none;}
+  .chartview.active{display:block;}
+
+  .badgegrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:16px;}
+  .badge{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 20px; display:flex; gap:14px; align-items:flex-start;}
+  .badge .ring{width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .badge.on .ring{background:var(--brass-soft); border:1.5px solid var(--brass);}
+  .badge.off .ring{background:transparent; border:1.5px dashed var(--line);}
+  .badge .ring svg{width:17px; height:17px;}
+  .badge .t{font-size:13.5px; font-weight:700;}
+  .badge .d{font-size:12px; color:var(--sub); margin-top:3px; line-height:1.4;}
+  .badge.off .t{color:var(--sub);}
+
+  .streakline{font-size:12px; color:var(--sub); margin:-10px 0 20px;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="topbar">
+    <div class="d" id="topbar-date"><b>&nbsp;</b></div>
+    <div class="streak" id="topbar-streak"></div>
+  </div>
+
+  <div class="banner" id="sync-banner">⚠ <span id="sync-banner-text"></span></div>
+
+  <nav class="stabs">
+    <button class="active" data-sec="overview">Overview &amp; logging</button>
+    <button data-sec="graphs">Graphs &amp; stats</button>
+    <button data-sec="badges">Badges</button>
+  </nav>
+
+  <!-- ===== OVERVIEW ===== -->
+  <section class="section active" id="sec-overview">
+    <div class="hero">
+      <div class="eq" id="hero-eq">–<span class="op">×</span>–<span class="op">=</span><span class="ans">–</span></div>
+    </div>
+
+    <div class="stat">
+      <h3>Where the year actually stands</h3>
+      <div class="bignums">
+        <div class="bn"><div class="v" id="bn-elapsed" style="color:var(--ink)">–</div><div class="l">Year elapsed</div></div>
+        <div class="bn"><div class="v" id="bn-pace" style="color:var(--stone)">–</div><div class="l">Reps if on pace</div></div>
+        <div class="bn"><div class="v" id="bn-actual" style="color:var(--brass)">–</div><div class="l">Reps actually done</div></div>
+        <div class="gapcallout"><div class="v" id="bn-gap">–</div><div class="l" id="bn-gap-label">pts gap</div></div>
+      </div>
+      <div class="strack">
+        <div class="tick ideal" id="tick-ideal"></div>
+        <div class="tick actual" id="tick-actual"></div>
+        <div class="tick days" id="tick-days"></div>
+      </div>
+    </div>
+
+    <div class="cards">
+      <div class="card push">
+        <div class="exname">Pushups</div>
+        <div class="sub">Today's target</div>
+        <div class="targetnum" id="push-target">–</div>
+        <div class="track"><i id="push-bar" style="width:0%"></i></div>
+        <div class="progtext"><span id="push-done">0 logged</span><span id="push-togo">– to go</span></div>
+        <div class="logrow">
+          <input type="number" min="0" id="push-input" aria-label="Reps to log for pushups">
+          <button id="push-btn">Log</button>
+        </div>
+        <div class="missed">Missed <b id="push-missed">0</b> reps so far this year</div>
+      </div>
+
+      <div class="card sq">
+        <div class="exname">Squats</div>
+        <div class="sub">Today's target</div>
+        <div class="targetnum" id="sq-target">–</div>
+        <div class="track"><i id="sq-bar" style="width:0%"></i></div>
+        <div class="progtext"><span id="sq-done">0 logged</span><span id="sq-togo">– to go</span></div>
+        <div class="logrow">
+          <input type="number" min="0" id="sq-input" aria-label="Reps to log for squats">
+          <button id="sq-btn">Log</button>
+        </div>
+        <div class="missed">Missed <b id="sq-missed">0</b> reps so far this year</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== GRAPHS ===== -->
+  <section class="section" id="sec-graphs">
+    <div class="monthchips" id="monthchips">
+      <button class="active" data-m="year">Year</button>
+    </div>
+
+    <div class="chartpanel">
+      <div class="legend" id="legend-year">
+        <span><i class="sw ideal"></i>Ideal pace</span>
+        <span><i class="sw push"></i>Pushups actual</span>
+        <span><i class="sw sq"></i>Squats actual</span>
+      </div>
+      <div class="legend" id="legend-month" style="display:none">
+        <span><i class="sw ideal"></i>Day's target</span>
+        <span><i class="sw push"></i>Pushups</span>
+        <span><i class="sw sq"></i>Squats</span>
+      </div>
+
+      <div class="chartview active" id="view-year">
+        <svg class="chart" id="yearsvg" viewBox="0 0 900 268" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cumulative reps this year versus ideal pace."></svg>
+      </div>
+      <div class="chartview" id="view-month">
+        <svg class="chart" id="monthsvg" viewBox="0 0 900 268" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily reps for the selected month."></svg>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== BADGES ===== -->
+  <section class="section" id="sec-badges">
+    <div class="streakline" id="badge-streak-line"></div>
+    <div class="badgegrid" id="badgegrid"></div>
+  </section>
+
+</div>
+
+<script>
+const MONTH_NAMES = {1:'January',2:'February',3:'March',4:'April',5:'May',6:'June',7:'July',8:'August',9:'September',10:'October',11:'November',12:'December'};
+const NS = 'http://www.w3.org/2000/svg';
+let CURRENT_MONTH = 1;
+let CURRENT_STATE = null;
+
+function el(tag, attrs){
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+function fmtPct(v){ return v.toFixed(0) + '%'; }
+function clamp(v,a,b){ return Math.max(a, Math.min(b, v)); }
+
+// ---------- tabs ----------
+document.querySelectorAll('.stabs button').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.stabs button').forEach(b=>b.classList.remove('active'));
+    document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('sec-'+btn.dataset.sec).classList.add('active');
+    if(btn.dataset.sec === 'badges') loadBadges();
+    if(btn.dataset.sec === 'graphs') loadYearChart();
+  });
+});
+
+// ---------- overview ----------
+async function loadState(){
+  const r = await fetch('/api/state');
+  const s = await r.json();
+  CURRENT_STATE = s;
+  CURRENT_MONTH = s.month;
+
+  const d = new Date(s.date + 'T00:00:00');
+  document.getElementById('topbar-date').innerHTML =
+    '<b>' + d.toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'}) + '</b>'
+    + ' &nbsp;·&nbsp; day ' + s.day_of_year + ' of ' + s.days_in_year;
+  document.getElementById('topbar-streak').textContent = s.streak > 0 ? ('🔥 ' + s.streak + '-day streak') : '';
+
+  document.getElementById('hero-eq').innerHTML =
+    s.month + '<span class="op">×</span>' + s.day + '<span class="op">=</span><span class="ans">' + s.target_today + '</span>';
+
+  document.getElementById('bn-elapsed').textContent = fmtPct(s.elapsed_pct);
+  document.getElementById('bn-pace').textContent = fmtPct(s.pace_pct);
+  document.getElementById('bn-actual').textContent = fmtPct(s.actual_pct);
+  const gap = s.gap_pts;
+  document.getElementById('bn-gap').textContent = Math.abs(gap).toFixed(0) + ' pts';
+  document.getElementById('bn-gap-label').textContent = gap >= 0 ? 'days ahead of reps' : 'reps ahead of days';
+
+  document.getElementById('tick-ideal').style.left = clamp(s.pace_pct,0,100) + '%';
+  document.getElementById('tick-actual').style.left = clamp(s.actual_pct,0,100) + '%';
+  document.getElementById('tick-days').style.left = clamp(s.elapsed_pct,0,100) + '%';
+
+  renderCard('push', s.pushups_today, s.target_today, s.missed_pushups);
+  renderCard('sq', s.squats_today, s.target_today, s.missed_squats);
+
+  // sync banner
+  const banner = document.getElementById('sync-banner');
+  if(s.pending_sync > 0){
+    banner.classList.add('show');
+    document.getElementById('sync-banner-text').textContent =
+      s.pending_sync + ' entr' + (s.pending_sync===1?'y':'ies') + ' waiting to sync to The Debrief' +
+      (s.last_sync_error ? ' — last error: ' + s.last_sync_error : '');
+  } else {
+    banner.classList.remove('show');
+  }
+}
+
+function renderCard(prefix, done, target, missed){
+  const pct = target > 0 ? clamp(done/target*100, 0, 100) : 0;
+  document.getElementById(prefix+'-target').textContent = target;
+  document.getElementById(prefix+'-bar').style.width = pct + '%';
+  const doneEl = document.getElementById(prefix+'-done');
+  const togoEl = document.getElementById(prefix+'-togo');
+  doneEl.textContent = done + ' logged';
+  if(done >= target){
+    doneEl.classList.add('done'); togoEl.classList.add('done');
+    togoEl.textContent = 'Complete';
+  } else {
+    doneEl.classList.remove('done'); togoEl.classList.remove('done');
+    togoEl.textContent = (target-done) + ' to go';
+  }
+  document.getElementById(prefix+'-missed').textContent = missed;
+  const input = document.getElementById(prefix+'-input');
+  if(document.activeElement !== input) input.value = done;
+}
+
+async function logExercise(exercise){
+  const input = document.getElementById((exercise==='pushups'?'push':'sq')+'-input');
+  const btn = document.getElementById((exercise==='pushups'?'push':'sq')+'-btn');
+  const value = parseInt(input.value, 10);
+  if(isNaN(value) || value < 0) return;
+  btn.disabled = true;
+  const oldLabel = btn.textContent;
+  btn.textContent = 'Saving…';
+  try{
+    await fetch('/api/log', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({exercise, value})
+    });
+    await loadState();
+  } finally {
+    btn.disabled = false;
+    btn.textContent = oldLabel;
+  }
+}
+document.getElementById('push-btn').addEventListener('click', ()=>logExercise('pushups'));
+document.getElementById('sq-btn').addEventListener('click', ()=>logExercise('squats'));
+
+// ---------- graphs ----------
+function buildMonthChips(){
+  const wrap = document.getElementById('monthchips');
+  wrap.innerHTML = '<button class="active" data-m="year">Year</button>';
+  for(let m=1; m<=12; m++){
+    const b = document.createElement('button');
+    b.dataset.m = m;
+    b.textContent = MONTH_NAMES[m].slice(0,3);
+    if(m > CURRENT_MONTH) b.disabled = true;
+    wrap.appendChild(b);
+  }
+  wrap.querySelectorAll('button').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(btn.disabled) return;
+      wrap.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
+      btn.classList.add('active');
+      const m = btn.dataset.m;
+      if(m === 'year'){
+        document.getElementById('view-year').classList.add('active');
+        document.getElementById('view-month').classList.remove('active');
+        document.getElementById('legend-year').style.display='flex';
+        document.getElementById('legend-month').style.display='none';
+      } else {
+        document.getElementById('view-year').classList.remove('active');
+        document.getElementById('view-month').classList.add('active');
+        document.getElementById('legend-year').style.display='none';
+        document.getElementById('legend-month').style.display='flex';
+        loadMonthChart(parseInt(m,10));
+      }
+    });
+  });
+}
+
+async function loadYearChart(){
+  const r = await fetch('/api/chart/year');
+  const data = await r.json();
+  const svg = document.getElementById('yearsvg');
+  svg.innerHTML = '';
+  const W=900,H=268, padL=60,padR=20,padT=24,padB=30;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const n = data.length;
+  const maxVal = Math.max(...data.map(r=>r.target_cum)) * 1.05;
+  function X(i){ return padL + (i/(n-1))*plotW; }
+  function Y(v){ return padT + plotH - (v/maxVal)*plotH; }
+
+  svg.appendChild(el('line',{x1:padL,y1:padT+plotH,x2:W-padR,y2:padT+plotH,stroke:'#332c1f','stroke-width':1}));
+  const zero = el('text',{x:padL-8,y:padT+plotH+4,'text-anchor':'end','font-family':'Space Mono','font-size':10.5,fill:'#6c6353'});
+  zero.textContent='0'; svg.appendChild(zero);
+  const topLbl = el('text',{x:padL-8,y:padT+4,'text-anchor':'end','font-family':'Space Mono','font-size':10.5,fill:'#6c6353'});
+  topLbl.textContent = Math.round(maxVal).toLocaleString(); svg.appendChild(topLbl);
+
+  const idealPts = data.map((row,i)=>`${X(i)},${Y(row.target_cum)}`).join(' ');
+  svg.appendChild(el('polyline',{points:idealPts, fill:'none', stroke:'#8f8672','stroke-width':1.6,'stroke-dasharray':'1 5','stroke-linecap':'round'}));
+
+  const actualData = data.filter(r => r.pushups_cum !== undefined);
+  const pushPts = actualData.map((row,i)=>`${X(i)},${Y(row.pushups_cum)}`).join(' ');
+  const sqPts = actualData.map((row,i)=>`${X(i)},${Y(row.squats_cum)}`).join(' ');
+  svg.appendChild(el('polyline',{points:pushPts, fill:'none', stroke:'#c9a15a','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
+  svg.appendChild(el('polyline',{points:sqPts, fill:'none', stroke:'#c1603f','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
+
+  if(actualData.length){
+    const todayI = actualData.length - 1;
+    const tx = X(todayI);
+    svg.appendChild(el('line',{x1:tx,y1:padT,x2:tx,y2:padT+plotH,stroke:'#f5f1e6','stroke-width':1,'stroke-dasharray':'2 4',opacity:'0.2'}));
+    const todayLbl = el('text',{x:tx,y:padT-8,'text-anchor':'middle','font-family':'Inter','font-weight':600,'font-size':11,fill:'#f5f1e6'});
+    todayLbl.textContent='Today'; svg.appendChild(todayLbl);
+    svg.appendChild(el('circle',{cx:tx, cy:Y(actualData[todayI].pushups_cum), r:4, fill:'#c9a15a', stroke:'#15130f','stroke-width':1.5}));
+    svg.appendChild(el('circle',{cx:tx, cy:Y(actualData[todayI].squats_cum), r:4, fill:'#c1603f', stroke:'#15130f','stroke-width':1.5}));
+  }
+
+  [0,2,4,6,8,10,11].forEach(mi=>{
+    const idx = data.findIndex(r => parseInt(r.date.slice(5,7),10)-1 === mi);
+    if(idx >= 0){
+      const t = el('text',{x:X(idx),y:H-6,'text-anchor':'middle','font-family':'Inter','font-size':10.5,fill:'#6c6353'});
+      t.textContent = MONTH_NAMES[mi+1].slice(0,3); svg.appendChild(t);
+    }
+  });
+}
+
+async function loadMonthChart(m){
+  const r = await fetch('/api/chart/month/'+m);
+  const data = await r.json();
+  const svg = document.getElementById('monthsvg');
+  svg.innerHTML = '';
+  const W=900,H=268, padL=50,padR=20,padT=34,padB=40;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
+  const n = data.length || 1;
+  const maxVal = Math.max(1, ...data.map(row=>Math.max(row[1],row[2],row[3]))) * 1.1;
+  const slot = plotW/n;
+  const bw = Math.min(slot*0.34, 14);
+  function X(i){ return padL + i*slot + slot/2; }
+  function Y(v){ return padT + plotH - (v/maxVal)*plotH; }
+
+  svg.appendChild(el('line',{x1:padL,y1:padT+plotH,x2:W-padR,y2:padT+plotH,stroke:'#332c1f','stroke-width':1}));
+  const zero = el('text',{x:padL-6,y:padT+plotH+4,'text-anchor':'end','font-family':'Space Mono','font-size':10.5,fill:'#6c6353'});
+  zero.textContent='0'; svg.appendChild(zero);
+
+  data.forEach((row,i)=>{
+    const [d,target,push,sq]=row;
+    const x0 = X(i)-bw-1;
+    const x1 = X(i)+1;
+    if(push>0){ const h=plotH-(Y(push)-padT); svg.appendChild(el('rect',{x:x0,y:Y(push),width:bw,height:h,rx:2,fill:'#c9a15a'})); }
+    if(sq>0){ const h=plotH-(Y(sq)-padT); svg.appendChild(el('rect',{x:x1,y:Y(sq),width:bw,height:h,rx:2,fill:'#c1603f'})); }
+    if(d%5===0 || d===1 || d===data.length){
+      const t=el('text',{x:X(i),y:padT+plotH+18,'text-anchor':'middle','font-family':'Inter','font-size':10,fill:'#6c6353'}); t.textContent=d; svg.appendChild(t);
+    }
+  });
+
+  const pts = data.map((row,i)=>`${X(i)},${Y(row[1])}`).join(' ');
+  svg.appendChild(el('polyline',{points:pts, fill:'none', stroke:'#8f8672','stroke-width':1.6,'stroke-dasharray':'1 5','stroke-linecap':'round'}));
+
+  const title = el('text',{x:padL,y:20,'font-family':'Inter','font-weight':600,'font-size':13,fill:'#f5f1e6'});
+  title.textContent = MONTH_NAMES[m] + ' — daily reps';
+  svg.appendChild(title);
+}
+
+// ---------- badges ----------
+const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#c9a15a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="#6c6353" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#6c6353" stroke-width="1.5"/></svg>';
+
+async function loadBadges(){
+  const r = await fetch('/api/badges');
+  const data = await r.json();
+  document.getElementById('badge-streak-line').textContent =
+    'Current streak: ' + data.current_streak + ' day' + (data.current_streak===1?'':'s') +
+    '  ·  Best streak: ' + data.best_streak + ' day' + (data.best_streak===1?'':'s');
+  const grid = document.getElementById('badgegrid');
+  grid.innerHTML = '';
+  data.badges.forEach(b=>{
+    const div = document.createElement('div');
+    div.className = 'badge ' + (b.earned ? 'on' : 'off');
+    div.innerHTML =
+      '<div class="ring">' + (b.earned ? CHECK_SVG : LOCK_SVG) + '</div>' +
+      '<div><div class="t">' + b.name + '</div><div class="d">' + b.desc + '</div></div>';
+    grid.appendChild(div);
+  });
+}
+
+// ---------- init ----------
+(async function init(){
+  await loadState();
+  buildMonthChips();
+})();
+</script>
+</body>
+</html>
