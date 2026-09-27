@@ -60,6 +60,7 @@
   .bignums{display:flex; gap:36px; flex-wrap:wrap; margin-bottom:22px;}
   .bignums .bn .v{font-family:'Space Mono',monospace; font-weight:700; font-size:32px; line-height:1;}
   .bignums .bn .l{font-size:12px; color:var(--sub); margin-top:6px;}
+  .bignums .ytdblock{margin-left:auto; display:flex; gap:28px; align-self:center; padding-left:20px; border-left:1px solid var(--line);}
   .strack{position:relative; height:5px; background:var(--surface-2); border-radius:99px; margin:0 4px;}
   .tick{position:absolute; top:50%; width:9px; height:9px; border-radius:50%; transform:translate(-50%,-50%); border:2px solid var(--bg);}
   .tick.days{background:var(--ink); z-index:3;}
@@ -174,8 +175,10 @@
         <div class="bn"><div class="v" id="bn-elapsed" style="color:var(--ink)">–</div><div class="l">Year elapsed</div></div>
         <div class="bn"><div class="v" id="bn-pace" style="color:var(--stone)">–</div><div class="l">Reps if on pace</div></div>
         <div class="bn"><div class="v" id="bn-actual" style="color:var(--brass)">–</div><div class="l">Reps actually done</div></div>
-        <div class="bn"><div class="v" id="bn-push-ytd" style="color:var(--brass)">–</div><div class="l">Pushups this year</div></div>
-        <div class="bn"><div class="v" id="bn-sq-ytd" style="color:var(--clay)">–</div><div class="l">Squats this year</div></div>
+        <div class="ytdblock">
+          <div class="bn"><div class="v" id="bn-push-ytd" style="color:var(--brass)">–</div><div class="l">Pushups this year</div></div>
+          <div class="bn"><div class="v" id="bn-sq-ytd" style="color:var(--clay)">–</div><div class="l">Squats this year</div></div>
+        </div>
       </div>
       <div class="strack">
         <div class="tick ideal" id="tick-ideal"></div>
