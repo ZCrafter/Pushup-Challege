@@ -1,0 +1,16 @@
+services:
+  daily-reps:
+    build: .
+    container_name: daily-reps
+    ports:
+      - "5005:5005"
+    environment:
+      # Set this to your actual local timezone (IANA name), or "today" will be
+      # computed in UTC and your day/targets will roll over at the wrong time.
+      - TZ=America/New_York
+      - DEBRIEF_URL=http://192.168.200.119:5400/api/entries
+      # How often (seconds) the background worker retries queued Debrief syncs.
+      - SYNC_INTERVAL_SECONDS=30
+    volumes:
+      - ./data:/data
+    restart: unless-stopped
