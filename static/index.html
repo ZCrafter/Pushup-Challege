@@ -60,9 +60,6 @@
   .bignums{display:flex; gap:36px; flex-wrap:wrap; margin-bottom:22px;}
   .bignums .bn .v{font-family:'Space Mono',monospace; font-weight:700; font-size:32px; line-height:1;}
   .bignums .bn .l{font-size:12px; color:var(--sub); margin-top:6px;}
-  .bignums .gapcallout{margin-left:auto; text-align:right; align-self:center; padding-left:20px; border-left:1px solid var(--line);}
-  .bignums .gapcallout .v{font-family:'Space Mono',monospace; font-weight:700; font-size:20px; color:var(--sub);}
-  .bignums .gapcallout .l{font-size:11.5px; color:var(--sub-dim); margin-top:3px;}
   .strack{position:relative; height:5px; background:var(--surface-2); border-radius:99px; margin:0 4px;}
   .tick{position:absolute; top:50%; width:9px; height:9px; border-radius:50%; transform:translate(-50%,-50%); border:2px solid var(--bg);}
   .tick.days{background:var(--ink); z-index:3;}
@@ -85,7 +82,7 @@
   .progtext{display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:12.5px; color:var(--sub);}
   .progtext .done{color:var(--ink);}
 
-  .logrow{display:flex; gap:8px; margin-top:14px;}
+  .logrow{display:flex; gap:8px; margin-top:14px; align-items:stretch;}
   .logrow input{
     width:82px; background:var(--surface-2); border:1px solid var(--line); color:var(--ink);
     font-family:'Space Mono',monospace; font-size:15px; font-weight:700; text-align:center;
@@ -93,6 +90,7 @@
   }
   .logrow button{
     flex:1; border:none; border-radius:8px; font:inherit; font-size:13.5px; font-weight:700; cursor:pointer;
+    min-height:76px;
   }
   .card.push .logrow button{background:var(--brass); color:#1e1608;}
   .card.sq .logrow button{background:var(--clay); color:#1f0d06;}
@@ -131,6 +129,16 @@
   .badge.off .t{color:var(--sub);}
 
   .streakline{font-size:12px; color:var(--sub); margin:-10px 0 20px;}
+
+  .easytoggle{display:flex; align-items:center; gap:10px; margin-bottom:18px;}
+  .easytoggle .sw{position:relative; width:40px; height:22px; background:var(--surface-2); border:1px solid var(--line);
+    border-radius:99px; cursor:pointer; flex-shrink:0;}
+  .easytoggle .sw i{position:absolute; top:2px; left:2px; width:16px; height:16px; border-radius:50%;
+    background:var(--sub); transition:transform .15s, background .15s;}
+  .easytoggle .sw.on{background:var(--brass-soft); border-color:var(--brass);}
+  .easytoggle .sw.on i{transform:translateX(18px); background:var(--brass);}
+  .easytoggle .lbl{font-size:13px; color:var(--sub); cursor:pointer;}
+  .easytoggle .lbl b{color:var(--ink);}
 </style>
 </head>
 <body>
@@ -155,13 +163,19 @@
       <div class="eq" id="hero-eq">–<span class="op">×</span>–<span class="op">=</span><span class="ans">–</span></div>
     </div>
 
+    <div class="easytoggle">
+      <div class="sw" id="easy-toggle" role="switch" aria-checked="false" tabindex="0"><i></i></div>
+      <div class="lbl" id="easy-label">Easy mode — <b>off</b> (target is day × month)</div>
+    </div>
+
     <div class="stat">
       <h3>Where the year actually stands</h3>
       <div class="bignums">
         <div class="bn"><div class="v" id="bn-elapsed" style="color:var(--ink)">–</div><div class="l">Year elapsed</div></div>
         <div class="bn"><div class="v" id="bn-pace" style="color:var(--stone)">–</div><div class="l">Reps if on pace</div></div>
         <div class="bn"><div class="v" id="bn-actual" style="color:var(--brass)">–</div><div class="l">Reps actually done</div></div>
-        <div class="gapcallout"><div class="v" id="bn-gap">–</div><div class="l" id="bn-gap-label">pts gap</div></div>
+        <div class="bn"><div class="v" id="bn-push-ytd" style="color:var(--brass)">–</div><div class="l">Pushups this year</div></div>
+        <div class="bn"><div class="v" id="bn-sq-ytd" style="color:var(--clay)">–</div><div class="l">Squats this year</div></div>
       </div>
       <div class="strack">
         <div class="tick ideal" id="tick-ideal"></div>
@@ -273,15 +287,22 @@ async function loadState(){
     + ' &nbsp;·&nbsp; day ' + s.day_of_year + ' of ' + s.days_in_year;
   document.getElementById('topbar-streak').textContent = s.streak > 0 ? ('🔥 ' + s.streak + '-day streak') : '';
 
-  document.getElementById('hero-eq').innerHTML =
-    s.month + '<span class="op">×</span>' + s.day + '<span class="op">=</span><span class="ans">' + s.target_today + '</span>';
+  document.getElementById('hero-eq').innerHTML = s.easy_mode
+    ? 'day ' + s.day + '<span class="op">=</span><span class="ans">' + s.target_today + '</span>'
+    : s.month + '<span class="op">×</span>' + s.day + '<span class="op">=</span><span class="ans">' + s.target_today + '</span>';
 
   document.getElementById('bn-elapsed').textContent = fmtPct(s.elapsed_pct);
   document.getElementById('bn-pace').textContent = fmtPct(s.pace_pct);
   document.getElementById('bn-actual').textContent = fmtPct(s.actual_pct);
-  const gap = s.gap_pts;
-  document.getElementById('bn-gap').textContent = Math.abs(gap).toFixed(0) + ' pts';
-  document.getElementById('bn-gap-label').textContent = gap >= 0 ? 'days ahead of reps' : 'reps ahead of days';
+  document.getElementById('bn-push-ytd').textContent = s.pushups_ytd.toLocaleString();
+  document.getElementById('bn-sq-ytd').textContent = s.squats_ytd.toLocaleString();
+
+  const toggle = document.getElementById('easy-toggle');
+  toggle.classList.toggle('on', s.easy_mode);
+  toggle.setAttribute('aria-checked', s.easy_mode ? 'true' : 'false');
+  document.getElementById('easy-label').innerHTML =
+    'Easy mode — <b>' + (s.easy_mode ? 'on' : 'off') + '</b> (target is ' +
+    (s.easy_mode ? 'just the day number' : 'day × month') + ')';
 
   document.getElementById('tick-ideal').style.left = clamp(s.pace_pct,0,100) + '%';
   document.getElementById('tick-actual').style.left = clamp(s.actual_pct,0,100) + '%';
@@ -318,7 +339,7 @@ function renderCard(prefix, done, target, missed){
   }
   document.getElementById(prefix+'-missed').textContent = missed;
   const input = document.getElementById(prefix+'-input');
-  if(document.activeElement !== input) input.value = done;
+  if(document.activeElement !== input) input.value = target;
 }
 
 async function logExercise(exercise){
@@ -343,6 +364,21 @@ async function logExercise(exercise){
 }
 document.getElementById('push-btn').addEventListener('click', ()=>logExercise('pushups'));
 document.getElementById('sq-btn').addEventListener('click', ()=>logExercise('squats'));
+
+async function toggleEasyMode(){
+  const next = !(CURRENT_STATE && CURRENT_STATE.easy_mode);
+  await fetch('/api/settings', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({easy_mode: next})
+  });
+  await loadState();
+}
+const easyToggleEl = document.getElementById('easy-toggle');
+easyToggleEl.addEventListener('click', toggleEasyMode);
+easyToggleEl.addEventListener('keydown', (e)=>{
+  if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleEasyMode(); }
+});
 
 // ---------- graphs ----------
 function buildMonthChips(){
