@@ -50,8 +50,31 @@ def init_db():
         created_at TEXT NOT NULL,
         status TEXT NOT NULL DEFAULT 'pending'
     )""")
+    conn.execute("""CREATE TABLE IF NOT EXISTS settings(
+        key TEXT PRIMARY KEY,
+        value TEXT
+    )""")
     conn.commit()
     conn.close()
+
+
+def get_easy_mode(conn) -> bool:
+    row = conn.execute("SELECT value FROM settings WHERE key='easy_mode'").fetchone()
+    return row is not None and row["value"] == "1"
+
+
+def set_easy_mode(conn, val: bool):
+    conn.execute(
+        "INSERT INTO settings(key,value) VALUES('easy_mode',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        ("1" if val else "0",),
+    )
+    conn.commit()
+
+
+def first_log_date(conn):
+    row = conn.execute("SELECT MIN(date) m FROM logs").fetchone()
+    return date.fromisoformat(row["m"]) if row and row["m"] else None
 
 
 # ---------- date / target helpers ----------
@@ -60,8 +83,8 @@ def today_local() -> date:
     return datetime.now(TZ).date()
 
 
-def day_target(d: date) -> int:
-    return d.day * d.month
+def day_target(d: date, easy_mode: bool = False) -> int:
+    return d.day if easy_mode else d.day * d.month
 
 
 def days_in_year(year: int) -> int:
@@ -213,17 +236,42 @@ def api_log():
     })
 
 
+@app.route("/api/settings", methods=["GET"])
+def api_get_settings():
+    conn = get_db()
+    easy = get_easy_mode(conn)
+    conn.close()
+    return jsonify({"easy_mode": easy})
+
+
+@app.route("/api/settings", methods=["POST"])
+def api_post_settings():
+    body = request.get_json(force=True, silent=True) or {}
+    if "easy_mode" not in body:
+        return jsonify({"error": "easy_mode required"}), 400
+    conn = get_db()
+    set_easy_mode(conn, bool(body["easy_mode"]))
+    conn.close()
+    return jsonify({"ok": True, "easy_mode": bool(body["easy_mode"])})
+
+
 @app.route("/api/state")
 def api_state():
     conn = get_db()
     today = today_local()
     year = today.year
-    target_today = day_target(today)
+    easy_mode = get_easy_mode(conn)
+    target_today = day_target(today, easy_mode)
     row_today = get_row(conn, today)
 
     logs_map = get_logs_map(conn, year)
 
-    total_year_target = sum(day_target(d) for d in iter_year_days(year))
+    # Missed reps only count from Jan 1 or from whenever you started logging,
+    # whichever is more recent -- never penalizes days before the app existed.
+    fld = first_log_date(conn)
+    missed_start = max(date(year, 1, 1), fld) if fld else date(year, 1, 1)
+
+    total_year_target = sum(day_target(d, easy_mode) for d in iter_year_days(year))
     cum_target_today = 0
     cum_pushups = 0
     cum_squats = 0
@@ -233,26 +281,25 @@ def api_state():
     for d in iter_year_days(year):
         if d > today:
             break
-        cum_target_today += day_target(d)
+        cum_target_today += day_target(d, easy_mode)
         r = logs_map.get(d.isoformat())
         p, s = pv(r), sv(r)
         cum_pushups += p
         cum_squats += s
-        if d < today:
-            t = day_target(d)
+        if d < today and d >= missed_start:
+            t = day_target(d, easy_mode)
             missed_pushups += max(t - p, 0)
             missed_squats += max(t - s, 0)
 
     elapsed_pct = today.timetuple().tm_yday / days_in_year(year) * 100
     pace_pct = cum_target_today / total_year_target * 100
     actual_pct = (cum_pushups + cum_squats) / (total_year_target * 2) * 100
-    gap_pts = elapsed_pct - pace_pct
 
     def fully_met(d):
         r = logs_map.get(d.isoformat())
         if not r:
             return False
-        t = day_target(d)
+        t = day_target(d, easy_mode)
         return pv(r) >= t and sv(r) >= t
 
     streak = 0
@@ -283,11 +330,13 @@ def api_state():
         "squats_logged": bool(row_today and row_today["squats"] is not None),
         "missed_pushups": missed_pushups,
         "missed_squats": missed_squats,
+        "pushups_ytd": cum_pushups,
+        "squats_ytd": cum_squats,
         "streak": streak,
+        "easy_mode": easy_mode,
         "elapsed_pct": round(elapsed_pct, 1),
         "pace_pct": round(pace_pct, 1),
         "actual_pct": round(actual_pct, 1),
-        "gap_pts": round(gap_pts, 1),
         "pending_sync": pending_sync,
         "last_sync_error": last_err_row["last_error"] if last_err_row else None,
     })
@@ -298,13 +347,14 @@ def api_chart_year():
     conn = get_db()
     today = today_local()
     year = today.year
+    easy_mode = get_easy_mode(conn)
     logs_map = get_logs_map(conn, year)
     conn.close()
 
     out = []
     cum_target = cum_p = cum_s = 0
     for d in iter_year_days(year):
-        cum_target += day_target(d)
+        cum_target += day_target(d, easy_mode)
         entry = {"date": d.isoformat(), "target_cum": cum_target}
         if d <= today:
             r = logs_map.get(d.isoformat())
@@ -326,6 +376,7 @@ def api_chart_month(m):
     if date(year, m, 1) > today:
         conn.close()
         return jsonify([])
+    easy_mode = get_easy_mode(conn)
     logs_map = get_logs_map(conn, year)
     conn.close()
 
@@ -336,7 +387,7 @@ def api_chart_month(m):
         if d > today:
             break
         r = logs_map.get(d.isoformat())
-        out.append([day, day_target(d), pv(r), sv(r)])
+        out.append([day, day_target(d, easy_mode), pv(r), sv(r)])
     return jsonify(out)
 
 
@@ -344,6 +395,7 @@ def api_chart_month(m):
 def api_badges():
     conn = get_db()
     today = today_local()
+    easy_mode = get_easy_mode(conn)
     rows = conn.execute("SELECT * FROM logs ORDER BY date").fetchall()
     conn.close()
 
@@ -357,7 +409,7 @@ def api_badges():
         r = logs.get(d.isoformat())
         if not r:
             return False
-        t = day_target(d)
+        t = day_target(d, easy_mode)
         return pv(r) >= t and sv(r) >= t
 
     def streak_ending(d):
@@ -385,7 +437,7 @@ def api_badges():
             month_survivor = True
             break
 
-    total_year_target = sum(day_target(d) for d in iter_year_days(today.year))
+    total_year_target = sum(day_target(d, easy_mode) for d in iter_year_days(today.year))
     half = total_year_target / 2
 
     early_bird = False
@@ -404,8 +456,10 @@ def api_badges():
         and abs(lifetime_pushups - lifetime_squats) / max(lifetime_pushups, lifetime_squats) <= 0.10
     )
 
-    dec31 = logs.get(date(today.year, 12, 31).isoformat())
-    year_finisher = dec31 is not None and pv(dec31) >= 372 and sv(dec31) >= 372
+    dec31_date = date(today.year, 12, 31)
+    dec31_target = day_target(dec31_date, easy_mode)
+    dec31 = logs.get(dec31_date.isoformat())
+    year_finisher = dec31 is not None and pv(dec31) >= dec31_target and sv(dec31) >= dec31_target
 
     comeback = False
     if len(rows) >= 2:
@@ -456,7 +510,9 @@ def api_badges():
         {"id": "comeback", "name": "Comeback",
          "desc": "Missed 3+ days in a row, then got back on the horse.", "earned": comeback},
         {"id": "year_finisher", "name": "Year Finisher",
-         "desc": "Hit the hardest day, Dec 31 \u2014 12 \u00d7 31 = 372.", "earned": year_finisher},
+         "desc": ("Hit the hardest day, Dec 31 \u2014 12 \u00d7 31 = 372." if not easy_mode
+                   else f"Hit Dec 31's target ({dec31_target} reps)."),
+         "earned": year_finisher},
     ]
 
     return jsonify({"badges": badges, "current_streak": current_streak, "best_streak": best_streak})
