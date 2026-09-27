@@ -77,6 +77,25 @@ def first_log_date(conn):
     return date.fromisoformat(row["m"]) if row and row["m"] else None
 
 
+def get_or_init_app_start(conn):
+    """The day the app started being used, for the missed-reps floor.
+    Persisted so it doesn't drift: set once, the first time it's read, to
+    the earliest existing log date if any data already exists, otherwise
+    to today (so a fresh install with zero logs floors at 'today', not the
+    whole backlog since Jan 1)."""
+    row = conn.execute("SELECT value FROM settings WHERE key='app_start_date'").fetchone()
+    if row:
+        return date.fromisoformat(row["value"])
+    start = first_log_date(conn) or today_local()
+    conn.execute(
+        "INSERT INTO settings(key,value) VALUES('app_start_date',?) "
+        "ON CONFLICT(key) DO UPDATE SET value=excluded.value",
+        (start.isoformat(),),
+    )
+    conn.commit()
+    return start
+
+
 # ---------- date / target helpers ----------
 
 def today_local() -> date:
@@ -268,8 +287,8 @@ def api_state():
 
     # Missed reps only count from Jan 1 or from whenever you started logging,
     # whichever is more recent -- never penalizes days before the app existed.
-    fld = first_log_date(conn)
-    missed_start = max(date(year, 1, 1), fld) if fld else date(year, 1, 1)
+    app_start = get_or_init_app_start(conn)
+    missed_start = max(date(year, 1, 1), app_start)
 
     total_year_target = sum(day_target(d, easy_mode) for d in iter_year_days(year))
     cum_target_today = 0
