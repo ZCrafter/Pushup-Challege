@@ -24,7 +24,13 @@ as a volume so it survives container rebuilds/updates).
 ## How it works
 
 - **Target**: `month × day-of-month`, computed server-side each request using
-  the container's `TZ`.
+  the container's `TZ`. **Easy mode** (toggle on the Overview tab) switches
+  the target to just `day-of-month` (no month multiplier) — the setting is
+  global and stored in the DB, so it applies retroactively to every stat,
+  chart, and badge, past and future, until you toggle it off again.
+- **Missed reps**: only counts from Jan 1 *or* from whichever day you first
+  logged something, whichever is more recent — so a brand-new install
+  doesn't show a huge "missed" number for days before you started using it.
 - **Logging**: each exercise has its own log endpoint. Logging again for the
   same day **overwrites** that exercise's value for the day (e.g. log 20,
   then log 40 → stored value is 40, not 60). Pushups and squats are
@@ -36,9 +42,12 @@ as a volume so it survives container rebuilds/updates).
   Debrief with a stray 0). If that request fails, the entry is saved locally,
   a warning banner appears in the UI, and a background worker retries every
   `SYNC_INTERVAL_SECONDS` (default 30s) until it succeeds.
-- **"Missed reps"**: cumulative shortfall (`target - actual`, floored at 0)
-  summed over every *completed* day this year (today is excluded until it's
-  over, since it's still "to go" rather than missed).
+  Beyond that, it's cumulative shortfall (`target - actual`, floored at 0)
+  summed over every *completed* day (today is excluded until it's over,
+  since it's still "to go" rather than missed).
+- **This year**: the Overview stat block shows lifetime pushups/squats
+  logged so far this year (Jan 1 through today), regardless of the missed-
+  reps start date above.
 - **Streak**: consecutive days (working backward from today, or yesterday if
   today isn't done yet) where both pushups and squats met/exceeded that
   day's target.
