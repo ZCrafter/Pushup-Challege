@@ -10,10 +10,13 @@ from zoneinfo import ZoneInfo
 import requests
 from flask import Flask, request, jsonify, send_from_directory
 
-DB_PATH = os.environ.get("DB_PATH", "/data/daily_reps.db")
-TZ_NAME = os.environ.get("TZ", "UTC")
-DEBRIEF_URL = os.environ.get("DEBRIEF_URL", "http://192.168.200.119:5400/api/entries")
-SYNC_INTERVAL = int(os.environ.get("SYNC_INTERVAL_SECONDS", "30"))
+DB_PATH         = os.environ.get("DB_PATH", "/data/daily_reps.db")
+TZ_NAME         = os.environ.get("TZ", "UTC")
+DEBRIEF_URL     = os.environ.get("DEBRIEF_URL", "http://192.168.200.119:5400/api/entries")
+SYNC_INTERVAL   = int(os.environ.get("SYNC_INTERVAL_SECONDS", "30"))
+# The data_key for High Knees in The Debrief's custom_data.
+# Find it at http://YOUR-NAS:5400/api/goals — look for the High Knees data_key.
+HK_DEBRIEF_KEY  = os.environ.get("DEBRIEF_HIGH_KNEES_KEY", "ex_high_knees")
 
 try:
     TZ = ZoneInfo(TZ_NAME)
@@ -21,6 +24,8 @@ except Exception:
     TZ = ZoneInfo("UTC")
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+
+EXERCISES = ("pushups", "squats", "high_knees")
 
 
 # ---------- db ----------
@@ -36,24 +41,30 @@ def init_db():
     os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
     conn = get_db()
     conn.execute("""CREATE TABLE IF NOT EXISTS logs(
-        date TEXT PRIMARY KEY,
-        pushups INTEGER,
-        squats INTEGER,
-        updated_at TEXT NOT NULL
+        date        TEXT PRIMARY KEY,
+        pushups     INTEGER,
+        squats      INTEGER,
+        high_knees  INTEGER,
+        updated_at  TEXT NOT NULL
     )""")
     conn.execute("""CREATE TABLE IF NOT EXISTS outbox(
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        date TEXT NOT NULL,
-        payload TEXT NOT NULL,
-        attempts INTEGER NOT NULL DEFAULT 0,
-        last_error TEXT,
-        created_at TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending'
+        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+        date        TEXT NOT NULL,
+        payload     TEXT NOT NULL,
+        attempts    INTEGER NOT NULL DEFAULT 0,
+        last_error  TEXT,
+        created_at  TEXT NOT NULL,
+        status      TEXT NOT NULL DEFAULT 'pending'
     )""")
     conn.execute("""CREATE TABLE IF NOT EXISTS settings(
-        key TEXT PRIMARY KEY,
+        key   TEXT PRIMARY KEY,
         value TEXT
     )""")
+    # Migration: add high_knees column to existing databases
+    try:
+        conn.execute("ALTER TABLE logs ADD COLUMN high_knees INTEGER")
+    except Exception:
+        pass
     conn.commit()
     conn.close()
 
@@ -78,11 +89,6 @@ def first_log_date(conn):
 
 
 def get_or_init_app_start(conn):
-    """The day the app started being used, for the missed-reps floor.
-    Persisted so it doesn't drift: set once, the first time it's read, to
-    the earliest existing log date if any data already exists, otherwise
-    to today (so a fresh install with zero logs floors at 'today', not the
-    whole backlog since Jan 1)."""
     row = conn.execute("SELECT value FROM settings WHERE key='app_start_date'").fetchone()
     if row:
         return date.fromisoformat(row["value"])
@@ -128,29 +134,35 @@ def get_logs_map(conn, year: int):
 
 
 def pv(r):
-    return r["pushups"] if r and r["pushups"] is not None else 0
-
+    return r["pushups"]    if r and r["pushups"]    is not None else 0
 
 def sv(r):
-    return r["squats"] if r and r["squats"] is not None else 0
+    return r["squats"]     if r and r["squats"]     is not None else 0
+
+def hkv(r):
+    return r["high_knees"] if r and r["high_knees"] is not None else 0
 
 
 # ---------- writes ----------
 
 def upsert_log(conn, d: date, exercise: str, value: int):
     row = get_row(conn, d)
-    pushups = row["pushups"] if row else None
-    squats = row["squats"] if row else None
+    pushups    = row["pushups"]    if row else None
+    squats     = row["squats"]     if row else None
+    high_knees = row["high_knees"] if row else None
     if exercise == "pushups":
         pushups = value
-    else:
+    elif exercise == "squats":
         squats = value
+    else:
+        high_knees = value
     now = datetime.now(TZ).isoformat()
     conn.execute(
-        """INSERT INTO logs(date,pushups,squats,updated_at) VALUES(?,?,?,?)
+        """INSERT INTO logs(date,pushups,squats,high_knees,updated_at) VALUES(?,?,?,?,?)
            ON CONFLICT(date) DO UPDATE SET pushups=excluded.pushups,
-               squats=excluded.squats, updated_at=excluded.updated_at""",
-        (d.isoformat(), pushups, squats, now),
+               squats=excluded.squats, high_knees=excluded.high_knees,
+               updated_at=excluded.updated_at""",
+        (d.isoformat(), pushups, squats, high_knees, now),
     )
     conn.commit()
     return get_row(conn, d)
@@ -159,13 +171,13 @@ def upsert_log(conn, d: date, exercise: str, value: int):
 # ---------- Debrief sync ----------
 
 def build_debrief_payload(row):
-    # Only include fields that have actually been logged locally, so we never
-    # blast a 0 over a value Debrief already has for the other exercise.
     payload = {"date": row["date"]}
     if row["pushups"] is not None:
         payload["pushups_done"] = row["pushups"]
     if row["squats"] is not None:
         payload["squats_done"] = row["squats"]
+    if row["high_knees"] is not None:
+        payload.setdefault("custom_data", {})[HK_DEBRIEF_KEY] = row["high_knees"]
     return payload
 
 
@@ -220,11 +232,11 @@ def index():
 def api_log():
     body = request.get_json(force=True, silent=True) or {}
     exercise = body.get("exercise")
-    value = body.get("value")
+    value    = body.get("value")
     date_str = body.get("date")
 
-    if exercise not in ("pushups", "squats"):
-        return jsonify({"error": "exercise must be 'pushups' or 'squats'"}), 400
+    if exercise not in EXERCISES:
+        return jsonify({"error": f"exercise must be one of: {', '.join(EXERCISES)}"}), 400
     try:
         value = int(value)
         if value < 0:
@@ -250,8 +262,9 @@ def api_log():
         "synced": ok,
         "sync_error": err,
         "date": d.isoformat(),
-        "pushups": row["pushups"],
-        "squats": row["squats"],
+        "pushups":    row["pushups"],
+        "squats":     row["squats"],
+        "high_knees": row["high_knees"],
     })
 
 
@@ -277,49 +290,46 @@ def api_post_settings():
 @app.route("/api/state")
 def api_state():
     conn = get_db()
-    today = today_local()
-    year = today.year
+    today     = today_local()
+    year      = today.year
     easy_mode = get_easy_mode(conn)
     target_today = day_target(today, easy_mode)
-    row_today = get_row(conn, today)
+    row_today    = get_row(conn, today)
+    logs_map     = get_logs_map(conn, year)
 
-    logs_map = get_logs_map(conn, year)
-
-    # Missed reps only count from Jan 1 or from whenever you started logging,
-    # whichever is more recent -- never penalizes days before the app existed.
-    app_start = get_or_init_app_start(conn)
+    app_start    = get_or_init_app_start(conn)
     missed_start = max(date(year, 1, 1), app_start)
 
     total_year_target = sum(day_target(d, easy_mode) for d in iter_year_days(year))
-    cum_target_today = 0
-    cum_pushups = 0
-    cum_squats = 0
-    missed_pushups = 0
-    missed_squats = 0
+    cum_target_today  = 0
+    cum_pushups = cum_squats = cum_hk = 0
+    missed_pushups = missed_squats = missed_hk = 0
 
     for d in iter_year_days(year):
         if d > today:
             break
         cum_target_today += day_target(d, easy_mode)
         r = logs_map.get(d.isoformat())
-        p, s = pv(r), sv(r)
+        p, s, h = pv(r), sv(r), hkv(r)
         cum_pushups += p
-        cum_squats += s
+        cum_squats  += s
+        cum_hk      += h
         if d < today and d >= missed_start:
             t = day_target(d, easy_mode)
             missed_pushups += max(t - p, 0)
-            missed_squats += max(t - s, 0)
+            missed_squats  += max(t - s, 0)
+            missed_hk      += max(t - h, 0)
 
     elapsed_pct = today.timetuple().tm_yday / days_in_year(year) * 100
-    pace_pct = cum_target_today / total_year_target * 100
-    actual_pct = (cum_pushups + cum_squats) / (total_year_target * 2) * 100
+    pace_pct    = cum_target_today / total_year_target * 100
+    actual_pct  = (cum_pushups + cum_squats + cum_hk) / (total_year_target * 3) * 100
 
     def fully_met(d):
         r = logs_map.get(d.isoformat())
         if not r:
             return False
         t = day_target(d, easy_mode)
-        return pv(r) >= t and sv(r) >= t
+        return pv(r) >= t and sv(r) >= t and hkv(r) >= t
 
     streak = 0
     cur = today if fully_met(today) else today - timedelta(days=1)
@@ -337,25 +347,29 @@ def api_state():
     conn.close()
 
     return jsonify({
-        "date": today.isoformat(),
-        "day": today.day,
-        "month": today.month,
-        "day_of_year": today.timetuple().tm_yday,
+        "date":         today.isoformat(),
+        "day":          today.day,
+        "month":        today.month,
+        "day_of_year":  today.timetuple().tm_yday,
         "days_in_year": days_in_year(year),
         "target_today": target_today,
-        "pushups_today": pv(row_today),
-        "squats_today": sv(row_today),
-        "pushups_logged": bool(row_today and row_today["pushups"] is not None),
-        "squats_logged": bool(row_today and row_today["squats"] is not None),
-        "missed_pushups": missed_pushups,
-        "missed_squats": missed_squats,
-        "pushups_ytd": cum_pushups,
-        "squats_ytd": cum_squats,
-        "streak": streak,
-        "easy_mode": easy_mode,
-        "elapsed_pct": round(elapsed_pct, 1),
-        "pace_pct": round(pace_pct, 1),
-        "actual_pct": round(actual_pct, 1),
+        "pushups_today":    pv(row_today),
+        "squats_today":     sv(row_today),
+        "high_knees_today": hkv(row_today),
+        "pushups_logged":    bool(row_today and row_today["pushups"]    is not None),
+        "squats_logged":     bool(row_today and row_today["squats"]     is not None),
+        "high_knees_logged": bool(row_today and row_today["high_knees"] is not None),
+        "missed_pushups":    missed_pushups,
+        "missed_squats":     missed_squats,
+        "missed_high_knees": missed_hk,
+        "pushups_ytd":    cum_pushups,
+        "squats_ytd":     cum_squats,
+        "high_knees_ytd": cum_hk,
+        "streak":       streak,
+        "easy_mode":    easy_mode,
+        "elapsed_pct":  round(elapsed_pct, 1),
+        "pace_pct":     round(pace_pct, 1),
+        "actual_pct":   round(actual_pct, 1),
         "pending_sync": pending_sync,
         "last_sync_error": last_err_row["last_error"] if last_err_row else None,
     })
@@ -364,14 +378,14 @@ def api_state():
 @app.route("/api/chart/year")
 def api_chart_year():
     conn = get_db()
-    today = today_local()
-    year = today.year
+    today     = today_local()
+    year      = today.year
     easy_mode = get_easy_mode(conn)
-    logs_map = get_logs_map(conn, year)
+    logs_map  = get_logs_map(conn, year)
     conn.close()
 
     out = []
-    cum_target = cum_p = cum_s = 0
+    cum_target = cum_p = cum_s = cum_h = 0
     for d in iter_year_days(year):
         cum_target += day_target(d, easy_mode)
         entry = {"date": d.isoformat(), "target_cum": cum_target}
@@ -379,8 +393,10 @@ def api_chart_year():
             r = logs_map.get(d.isoformat())
             cum_p += pv(r)
             cum_s += sv(r)
-            entry["pushups_cum"] = cum_p
-            entry["squats_cum"] = cum_s
+            cum_h += hkv(r)
+            entry["pushups_cum"]    = cum_p
+            entry["squats_cum"]     = cum_s
+            entry["high_knees_cum"] = cum_h
         out.append(entry)
     return jsonify(out)
 
@@ -391,49 +407,50 @@ def api_chart_month(m):
         return jsonify({"error": "bad month"}), 400
     conn = get_db()
     today = today_local()
-    year = today.year
+    year  = today.year
     if date(year, m, 1) > today:
         conn.close()
         return jsonify([])
     easy_mode = get_easy_mode(conn)
-    logs_map = get_logs_map(conn, year)
+    logs_map  = get_logs_map(conn, year)
     conn.close()
 
     days = calendar.monthrange(year, m)[1]
-    out = []
+    out  = []
     for day in range(1, days + 1):
         d = date(year, m, day)
         if d > today:
             break
         r = logs_map.get(d.isoformat())
-        out.append([day, day_target(d, easy_mode), pv(r), sv(r)])
+        # [day, target, pushups, squats, high_knees]
+        out.append([day, day_target(d, easy_mode), pv(r), sv(r), hkv(r)])
     return jsonify(out)
 
 
 @app.route("/api/badges")
 def api_badges():
-    conn = get_db()
-    today = today_local()
+    conn      = get_db()
+    today     = today_local()
     easy_mode = get_easy_mode(conn)
-    rows = conn.execute("SELECT * FROM logs ORDER BY date").fetchall()
+    rows      = conn.execute("SELECT * FROM logs ORDER BY date").fetchall()
     conn.close()
 
     logs = {r["date"]: r for r in rows}
-    lifetime_pushups = sum(pv(r) for r in rows)
-    lifetime_squats = sum(sv(r) for r in rows)
-    lifetime_total = lifetime_pushups + lifetime_squats
-    max_single_day = max([0] + [max(pv(r), sv(r)) for r in rows])
+    lifetime_pushups    = sum(pv(r)  for r in rows)
+    lifetime_squats     = sum(sv(r)  for r in rows)
+    lifetime_hk         = sum(hkv(r) for r in rows)
+    lifetime_total      = lifetime_pushups + lifetime_squats + lifetime_hk
+    max_single_day      = max([0] + [max(pv(r), sv(r), hkv(r)) for r in rows])
 
     def fully_met(d):
         r = logs.get(d.isoformat())
         if not r:
             return False
         t = day_target(d, easy_mode)
-        return pv(r) >= t and sv(r) >= t
+        return pv(r) >= t and sv(r) >= t and hkv(r) >= t
 
     def streak_ending(d):
-        n = 0
-        cur = d
+        n, cur = 0, d
         while fully_met(cur):
             n += 1
             cur -= timedelta(days=1)
@@ -450,9 +467,9 @@ def api_badges():
             d += timedelta(days=1)
 
     month_survivor = False
-    for m in range(1, today.month):
-        days = calendar.monthrange(today.year, m)[1]
-        if all(fully_met(date(today.year, m, day)) for day in range(1, days + 1)):
+    for mo in range(1, today.month):
+        days = calendar.monthrange(today.year, mo)[1]
+        if all(fully_met(date(today.year, mo, day)) for day in range(1, days + 1)):
             month_survivor = True
             break
 
@@ -468,26 +485,30 @@ def api_badges():
         except Exception:
             pass
 
-    balanced = (
-        lifetime_total >= 500
-        and lifetime_pushups > 0
-        and lifetime_squats > 0
+    all_three = lifetime_total >= 500 and lifetime_pushups > 0 and lifetime_squats > 0 and lifetime_hk > 0
+    balanced  = (
+        all_three
         and abs(lifetime_pushups - lifetime_squats) / max(lifetime_pushups, lifetime_squats) <= 0.10
+        and abs(lifetime_pushups - lifetime_hk)     / max(lifetime_pushups, lifetime_hk)     <= 0.10
     )
 
-    dec31_date = date(today.year, 12, 31)
+    dec31_date   = date(today.year, 12, 31)
     dec31_target = day_target(dec31_date, easy_mode)
-    dec31 = logs.get(dec31_date.isoformat())
-    year_finisher = dec31 is not None and pv(dec31) >= dec31_target and sv(dec31) >= dec31_target
+    dec31        = logs.get(dec31_date.isoformat())
+    year_finisher = (
+        dec31 is not None
+        and pv(dec31)  >= dec31_target
+        and sv(dec31)  >= dec31_target
+        and hkv(dec31) >= dec31_target
+    )
 
     comeback = False
     if len(rows) >= 2:
         first_d = date.fromisoformat(rows[0]["date"])
-        gap = 0
-        d = first_d
+        gap, d  = 0, first_d
         while d <= today:
             r = logs.get(d.isoformat())
-            missed_day = (r is None) or (pv(r) == 0 and sv(r) == 0)
+            missed_day = (r is None) or (pv(r) == 0 and sv(r) == 0 and hkv(r) == 0)
             if missed_day:
                 gap += 1
             else:
@@ -498,39 +519,41 @@ def api_badges():
             d += timedelta(days=1)
 
     badges = [
-        {"id": "first_rep", "name": "First Rep", "desc": "Logged your very first workout.",
+        {"id": "first_rep",      "name": "First Rep",       "desc": "Logged your very first workout.",
          "earned": len(rows) > 0},
-        {"id": "century_club", "name": "Century Club", "desc": "100 lifetime reps across both exercises.",
+        {"id": "century_club",   "name": "Century Club",    "desc": "100 lifetime reps across all exercises.",
          "earned": lifetime_total >= 100},
-        {"id": "four_figures", "name": "Four Figures", "desc": "1,000 lifetime reps.",
+        {"id": "four_figures",   "name": "Four Figures",    "desc": "1,000 lifetime reps.",
          "earned": lifetime_total >= 1000},
-        {"id": "five_figures", "name": "Five Figures", "desc": "10,000 lifetime reps.",
+        {"id": "five_figures",   "name": "Five Figures",    "desc": "10,000 lifetime reps.",
          "earned": lifetime_total >= 10000},
-        {"id": "double_century", "name": "Double Century",
-         "desc": "200+ reps of one exercise in a single day.", "earned": max_single_day >= 200},
-        {"id": "triple_century", "name": "Triple Century",
-         "desc": "300+ reps of one exercise in a single day.", "earned": max_single_day >= 300},
-        {"id": "week_streak", "name": "Week Streak",
-         "desc": "Both exercises, every day, for 7 days straight.", "earned": best_streak >= 7},
-        {"id": "month_streak", "name": "Month Streak",
-         "desc": "Both exercises, every day, for 30 days straight.", "earned": best_streak >= 30},
-        {"id": "century_streak", "name": "Century Streak",
-         "desc": "Both exercises, every day, for 100 days straight.", "earned": best_streak >= 100},
-        {"id": "month_survivor", "name": "Month Survivor",
-         "desc": "Finish a full calendar month with zero missed days.", "earned": month_survivor},
-        {"id": "halfway_pushups", "name": "Halfway Home \u2014 Pushups",
-         "desc": "Reached 50% of the year's pushup target.", "earned": lifetime_pushups >= half},
-        {"id": "halfway_squats", "name": "Halfway Home \u2014 Squats",
-         "desc": "Reached 50% of the year's squat target.", "earned": lifetime_squats >= half},
-        {"id": "early_bird", "name": "Early Bird", "desc": "Logged a workout before 7am.",
+        {"id": "double_century", "name": "Double Century",  "desc": "200+ reps of one exercise in a single day.",
+         "earned": max_single_day >= 200},
+        {"id": "triple_century", "name": "Triple Century",  "desc": "300+ reps of one exercise in a single day.",
+         "earned": max_single_day >= 300},
+        {"id": "week_streak",    "name": "Week Streak",     "desc": "All three exercises, every day, for 7 days straight.",
+         "earned": best_streak >= 7},
+        {"id": "month_streak",   "name": "Month Streak",    "desc": "All three exercises, every day, for 30 days straight.",
+         "earned": best_streak >= 30},
+        {"id": "century_streak", "name": "Century Streak",  "desc": "All three exercises, every day, for 100 days straight.",
+         "earned": best_streak >= 100},
+        {"id": "month_survivor", "name": "Month Survivor",  "desc": "Finish a full calendar month with zero missed days.",
+         "earned": month_survivor},
+        {"id": "halfway_push",   "name": "Halfway — Pushups",    "desc": "Reached 50% of the year's pushup target.",
+         "earned": lifetime_pushups >= half},
+        {"id": "halfway_sq",     "name": "Halfway — Squats",     "desc": "Reached 50% of the year's squat target.",
+         "earned": lifetime_squats >= half},
+        {"id": "halfway_hk",     "name": "Halfway — High Knees", "desc": "Reached 50% of the year's high knees target.",
+         "earned": lifetime_hk >= half},
+        {"id": "early_bird",     "name": "Early Bird",      "desc": "Logged a workout before 7am.",
          "earned": early_bird},
-        {"id": "balanced_build", "name": "Balanced Build",
-         "desc": "Lifetime pushups and squats within 10% of each other (500+ total).", "earned": balanced},
-        {"id": "comeback", "name": "Comeback",
-         "desc": "Missed 3+ days in a row, then got back on the horse.", "earned": comeback},
-        {"id": "year_finisher", "name": "Year Finisher",
-         "desc": ("Hit the hardest day, Dec 31 \u2014 12 \u00d7 31 = 372." if not easy_mode
-                   else f"Hit Dec 31's target ({dec31_target} reps)."),
+        {"id": "balanced_build", "name": "Balanced Build",  "desc": "All three exercises within 10% of each other (500+ total).",
+         "earned": balanced},
+        {"id": "comeback",       "name": "Comeback",        "desc": "Missed 3+ days in a row, then got back on the horse.",
+         "earned": comeback},
+        {"id": "year_finisher",  "name": "Year Finisher",
+         "desc": ("Hit the hardest day, Dec 31 — 12 × 31 = 372." if not easy_mode
+                  else f"Hit Dec 31's target ({dec31_target} reps)."),
          "earned": year_finisher},
     ]
 
