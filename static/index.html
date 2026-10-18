@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Daily Reps — Pushups &amp; Squats</title>
+<title>Daily Reps — Pushups, Squats &amp; High Knees</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Space+Mono:wght@400;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -12,7 +12,8 @@
     --bg:#15130f; --surface:#1c1912; --surface-2:#241f17; --line:#332c1f;
     --ink:#f5f1e6; --sub:#a89d87; --sub-dim:#6c6353;
     --brass:#c9a15a; --brass-soft:rgba(201,161,90,.16);
-    --clay:#c1603f; --clay-soft:rgba(193,96,63,.16);
+    --clay:#c1603f;  --clay-soft:rgba(193,96,63,.16);
+    --sage:#5a9e7a;  --sage-soft:rgba(90,158,122,.16);
     --stone:#8f8672;
     --focus:#c9a15a;
     --warn:#c1603f;
@@ -25,10 +26,10 @@
     -webkit-font-smoothing:antialiased;
   }
   :focus-visible{outline:2px solid var(--focus); outline-offset:2px;}
-  @media (prefers-reduced-motion: reduce){ *{transition:none !important; animation:none !important;} }
+  @media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;}}
 
-  .wrap{max-width:1180px; margin:0 auto; padding:26px 34px 40px;}
-  @media (max-width:760px){ .wrap{padding:18px;} }
+  .wrap{max-width:1200px; margin:0 auto; padding:26px 34px 40px;}
+  @media(max-width:760px){.wrap{padding:18px;}}
 
   .topbar{display:flex; justify-content:space-between; align-items:baseline; margin-bottom:12px;}
   .topbar .d{font-size:13px; color:var(--sub);}
@@ -57,29 +58,32 @@
 
   .stat{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:22px 26px 20px; margin-bottom:26px;}
   .stat h3{margin:0 0 20px; font-size:13px; font-weight:600; color:var(--sub); letter-spacing:.2px;}
-  .bignums{display:flex; gap:36px; flex-wrap:wrap; margin-bottom:22px;}
-  .bignums .bn .v{font-family:'Space Mono',monospace; font-weight:700; font-size:32px; line-height:1;}
+  .bignums{display:flex; gap:24px; flex-wrap:wrap; margin-bottom:22px;}
+  .bignums .bn .v{font-family:'Space Mono',monospace; font-weight:700; font-size:28px; line-height:1;}
   .bignums .bn .l{font-size:12px; color:var(--sub); margin-top:6px;}
-  .bignums .ytdblock{margin-left:auto; display:flex; gap:28px; align-self:center; padding-left:20px; border-left:1px solid var(--line);}
+  .bignums .ytdblock{margin-left:auto; display:flex; gap:20px; align-self:center; padding-left:20px; border-left:1px solid var(--line); flex-wrap:wrap;}
   .strack{position:relative; height:5px; background:var(--surface-2); border-radius:99px; margin:0 4px;}
   .tick{position:absolute; top:50%; width:9px; height:9px; border-radius:50%; transform:translate(-50%,-50%); border:2px solid var(--bg);}
   .tick.days{background:var(--ink); z-index:3;}
   .tick.ideal{background:var(--stone); z-index:1;}
   .tick.actual{background:var(--brass); z-index:2;}
 
-  .cards{display:grid; grid-template-columns:1fr 1fr; gap:18px;}
-  @media (max-width:700px){ .cards{grid-template-columns:1fr;} }
+  .cards{display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;}
+  @media(max-width:900px){.cards{grid-template-columns:1fr 1fr;}}
+  @media(max-width:560px){.cards{grid-template-columns:1fr;}}
   .card{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px 22px;}
   .card .exname{font-size:15px; font-weight:700;}
   .card .sub{font-size:11.5px; color:var(--sub); margin-top:2px;}
   .card .targetnum{font-family:'Space Mono',monospace; font-weight:700; font-size:38px; margin:10px 0 12px; line-height:1;}
   .card.push .targetnum{color:var(--brass);}
-  .card.sq .targetnum{color:var(--clay);}
+  .card.sq   .targetnum{color:var(--clay);}
+  .card.hk   .targetnum{color:var(--sage);}
 
   .track{height:6px; border-radius:99px; background:var(--surface-2); overflow:hidden; margin-bottom:8px;}
   .track i{display:block; height:100%; border-radius:99px;}
   .card.push .track i{background:var(--brass);}
-  .card.sq .track i{background:var(--clay);}
+  .card.sq   .track i{background:var(--clay);}
+  .card.hk   .track i{background:var(--sage);}
   .progtext{display:flex; justify-content:space-between; font-family:'Space Mono',monospace; font-size:12.5px; color:var(--sub);}
   .progtext .done{color:var(--ink);}
 
@@ -94,7 +98,8 @@
     min-height:76px;
   }
   .card.push .logrow button{background:var(--brass); color:#1e1608;}
-  .card.sq .logrow button{background:var(--clay); color:#1f0d06;}
+  .card.sq   .logrow button{background:var(--clay);  color:#1f0d06;}
+  .card.hk   .logrow button{background:var(--sage);  color:#0d1f14;}
   .logrow button:disabled{background:var(--surface-2); color:var(--sub-dim); cursor:default;}
 
   .missed{font-size:11.5px; color:var(--sub-dim); margin-top:12px;}
@@ -109,12 +114,13 @@
   .monthchips button:disabled{opacity:.35; cursor:default;}
 
   .chartpanel{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:20px 22px 8px;}
-  .legend{display:flex; gap:20px; font-size:12px; color:var(--sub); margin-bottom:8px;}
+  .legend{display:flex; gap:20px; font-size:12px; color:var(--sub); margin-bottom:8px; flex-wrap:wrap;}
   .legend span{display:inline-flex; align-items:center; gap:6px;}
   .sw{width:10px; height:10px; border-radius:3px; display:inline-block;}
   .sw.ideal{background:var(--stone);}
-  .sw.push{background:var(--brass);}
-  .sw.sq{background:var(--clay);}
+  .sw.push {background:var(--brass);}
+  .sw.sq   {background:var(--clay);}
+  .sw.hk   {background:var(--sage);}
   svg.chart{width:100%; height:auto; display:block;}
   .chartview{display:none;}
   .chartview.active{display:block;}
@@ -122,7 +128,7 @@
   .badgegrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:16px;}
   .badge{background:var(--surface); border:1px solid var(--line); border-radius:12px; padding:18px 20px; display:flex; gap:14px; align-items:flex-start;}
   .badge .ring{width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
-  .badge.on .ring{background:var(--brass-soft); border:1.5px solid var(--brass);}
+  .badge.on  .ring{background:var(--brass-soft); border:1.5px solid var(--brass);}
   .badge.off .ring{background:transparent; border:1.5px dashed var(--line);}
   .badge .ring svg{width:17px; height:17px;}
   .badge .t{font-size:13.5px; font-weight:700;}
@@ -173,17 +179,18 @@
       <h3>Where the year actually stands</h3>
       <div class="bignums">
         <div class="bn"><div class="v" id="bn-elapsed" style="color:var(--ink)">–</div><div class="l">Year elapsed</div></div>
-        <div class="bn"><div class="v" id="bn-pace" style="color:var(--stone)">–</div><div class="l">Reps if on pace</div></div>
+        <div class="bn"><div class="v" id="bn-pace"   style="color:var(--stone)">–</div><div class="l">Reps if on pace</div></div>
         <div class="bn"><div class="v" id="bn-actual" style="color:var(--brass)">–</div><div class="l">Reps actually done</div></div>
         <div class="ytdblock">
-          <div class="bn"><div class="v" id="bn-push-ytd" style="color:var(--brass)">–</div><div class="l">Pushups this year</div></div>
-          <div class="bn"><div class="v" id="bn-sq-ytd" style="color:var(--clay)">–</div><div class="l">Squats this year</div></div>
+          <div class="bn"><div class="v" id="bn-push-ytd" style="color:var(--brass)">–</div><div class="l">Pushups YTD</div></div>
+          <div class="bn"><div class="v" id="bn-sq-ytd"   style="color:var(--clay)">–</div><div class="l">Squats YTD</div></div>
+          <div class="bn"><div class="v" id="bn-hk-ytd"   style="color:var(--sage)">–</div><div class="l">High Knees YTD</div></div>
         </div>
       </div>
       <div class="strack">
-        <div class="tick ideal" id="tick-ideal"></div>
+        <div class="tick ideal"  id="tick-ideal"></div>
         <div class="tick actual" id="tick-actual"></div>
-        <div class="tick days" id="tick-days"></div>
+        <div class="tick days"   id="tick-days"></div>
       </div>
     </div>
 
@@ -213,6 +220,19 @@
         </div>
         <div class="missed">Missed <b id="sq-missed">0</b> reps so far this year</div>
       </div>
+
+      <div class="card hk">
+        <div class="exname">High Knees</div>
+        <div class="sub">Today's target</div>
+        <div class="targetnum" id="hk-target">–</div>
+        <div class="track"><i id="hk-bar" style="width:0%"></i></div>
+        <div class="progtext"><span id="hk-done">0 logged</span><span id="hk-togo">– to go</span></div>
+        <div class="logrow">
+          <input type="number" min="0" id="hk-input" aria-label="Reps to log for high knees">
+          <button id="hk-btn">Log</button>
+        </div>
+        <div class="missed">Missed <b id="hk-missed">0</b> reps so far this year</div>
+      </div>
     </div>
   </section>
 
@@ -221,24 +241,24 @@
     <div class="monthchips" id="monthchips">
       <button class="active" data-m="year">Year</button>
     </div>
-
     <div class="chartpanel">
       <div class="legend" id="legend-year">
         <span><i class="sw ideal"></i>Ideal pace</span>
         <span><i class="sw push"></i>Pushups actual</span>
         <span><i class="sw sq"></i>Squats actual</span>
+        <span><i class="sw hk"></i>High Knees actual</span>
       </div>
       <div class="legend" id="legend-month" style="display:none">
         <span><i class="sw ideal"></i>Day's target</span>
         <span><i class="sw push"></i>Pushups</span>
         <span><i class="sw sq"></i>Squats</span>
+        <span><i class="sw hk"></i>High Knees</span>
       </div>
-
       <div class="chartview active" id="view-year">
-        <svg class="chart" id="yearsvg" viewBox="0 0 900 268" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Cumulative reps this year versus ideal pace."></svg>
+        <svg class="chart" id="yearsvg" viewBox="0 0 900 268" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
       <div class="chartview" id="view-month">
-        <svg class="chart" id="monthsvg" viewBox="0 0 900 268" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Daily reps for the selected month."></svg>
+        <svg class="chart" id="monthsvg" viewBox="0 0 900 268" xmlns="http://www.w3.org/2000/svg"></svg>
       </div>
     </div>
   </section>
@@ -259,7 +279,7 @@ let CURRENT_STATE = null;
 
 function el(tag, attrs){
   const e = document.createElementNS(NS, tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  for(const k in attrs) e.setAttribute(k, attrs[k]);
   return e;
 }
 function fmtPct(v){ return v.toFixed(0) + '%'; }
@@ -286,7 +306,7 @@ async function loadState(){
 
   const d = new Date(s.date + 'T00:00:00');
   document.getElementById('topbar-date').innerHTML =
-    '<b>' + d.toLocaleDateString(undefined,{weekday:'long', month:'long', day:'numeric'}) + '</b>'
+    '<b>' + d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'}) + '</b>'
     + ' &nbsp;·&nbsp; day ' + s.day_of_year + ' of ' + s.days_in_year;
   document.getElementById('topbar-streak').textContent = s.streak > 0 ? ('🔥 ' + s.streak + '-day streak') : '';
 
@@ -295,10 +315,11 @@ async function loadState(){
     : s.month + '<span class="op">×</span>' + s.day + '<span class="op">=</span><span class="ans">' + s.target_today + '</span>';
 
   document.getElementById('bn-elapsed').textContent = fmtPct(s.elapsed_pct);
-  document.getElementById('bn-pace').textContent = fmtPct(s.pace_pct);
-  document.getElementById('bn-actual').textContent = fmtPct(s.actual_pct);
+  document.getElementById('bn-pace').textContent    = fmtPct(s.pace_pct);
+  document.getElementById('bn-actual').textContent  = fmtPct(s.actual_pct);
   document.getElementById('bn-push-ytd').textContent = s.pushups_ytd.toLocaleString();
-  document.getElementById('bn-sq-ytd').textContent = s.squats_ytd.toLocaleString();
+  document.getElementById('bn-sq-ytd').textContent   = s.squats_ytd.toLocaleString();
+  document.getElementById('bn-hk-ytd').textContent   = s.high_knees_ytd.toLocaleString();
 
   const toggle = document.getElementById('easy-toggle');
   toggle.classList.toggle('on', s.easy_mode);
@@ -307,14 +328,14 @@ async function loadState(){
     'Easy mode — <b>' + (s.easy_mode ? 'on' : 'off') + '</b> (target is ' +
     (s.easy_mode ? 'just the day number' : 'day × month') + ')';
 
-  document.getElementById('tick-ideal').style.left = clamp(s.pace_pct,0,100) + '%';
-  document.getElementById('tick-actual').style.left = clamp(s.actual_pct,0,100) + '%';
-  document.getElementById('tick-days').style.left = clamp(s.elapsed_pct,0,100) + '%';
+  document.getElementById('tick-ideal').style.left  = clamp(s.pace_pct,  0, 100) + '%';
+  document.getElementById('tick-actual').style.left = clamp(s.actual_pct,0, 100) + '%';
+  document.getElementById('tick-days').style.left   = clamp(s.elapsed_pct,0,100) + '%';
 
-  renderCard('push', s.pushups_today, s.target_today, s.missed_pushups);
-  renderCard('sq', s.squats_today, s.target_today, s.missed_squats);
+  renderCard('push', s.pushups_today,    s.target_today, s.missed_pushups);
+  renderCard('sq',   s.squats_today,     s.target_today, s.missed_squats);
+  renderCard('hk',   s.high_knees_today, s.target_today, s.missed_high_knees);
 
-  // sync banner
   const banner = document.getElementById('sync-banner');
   if(s.pending_sync > 0){
     banner.classList.add('show');
@@ -329,13 +350,13 @@ async function loadState(){
 function renderCard(prefix, done, target, missed){
   const pct = target > 0 ? clamp(done/target*100, 0, 100) : 0;
   document.getElementById(prefix+'-target').textContent = target;
-  document.getElementById(prefix+'-bar').style.width = pct + '%';
+  document.getElementById(prefix+'-bar').style.width    = pct + '%';
   const doneEl = document.getElementById(prefix+'-done');
   const togoEl = document.getElementById(prefix+'-togo');
   doneEl.textContent = done + ' logged';
   if(done >= target){
     doneEl.classList.add('done'); togoEl.classList.add('done');
-    togoEl.textContent = 'Complete';
+    togoEl.textContent = 'Complete ✓';
   } else {
     doneEl.classList.remove('done'); togoEl.classList.remove('done');
     togoEl.textContent = (target-done) + ' to go';
@@ -346,9 +367,11 @@ function renderCard(prefix, done, target, missed){
 }
 
 async function logExercise(exercise){
-  const input = document.getElementById((exercise==='pushups'?'push':'sq')+'-input');
-  const btn = document.getElementById((exercise==='pushups'?'push':'sq')+'-btn');
-  const value = parseInt(input.value, 10);
+  const prefixMap = {pushups:'push', squats:'sq', high_knees:'hk'};
+  const prefix    = prefixMap[exercise];
+  const input  = document.getElementById(prefix+'-input');
+  const btn    = document.getElementById(prefix+'-btn');
+  const value  = parseInt(input.value, 10);
   if(isNaN(value) || value < 0) return;
   btn.disabled = true;
   const oldLabel = btn.textContent;
@@ -365,8 +388,10 @@ async function logExercise(exercise){
     btn.textContent = oldLabel;
   }
 }
+
 document.getElementById('push-btn').addEventListener('click', ()=>logExercise('pushups'));
-document.getElementById('sq-btn').addEventListener('click', ()=>logExercise('squats'));
+document.getElementById('sq-btn').addEventListener('click',   ()=>logExercise('squats'));
+document.getElementById('hk-btn').addEventListener('click',   ()=>logExercise('high_knees'));
 
 async function toggleEasyMode(){
   const next = !(CURRENT_STATE && CURRENT_STATE.easy_mode);
@@ -380,7 +405,7 @@ async function toggleEasyMode(){
 const easyToggleEl = document.getElementById('easy-toggle');
 easyToggleEl.addEventListener('click', toggleEasyMode);
 easyToggleEl.addEventListener('keydown', (e)=>{
-  if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); toggleEasyMode(); }
+  if(e.key==='Enter'||e.key===' '){ e.preventDefault(); toggleEasyMode(); }
 });
 
 // ---------- graphs ----------
@@ -400,7 +425,7 @@ function buildMonthChips(){
       wrap.querySelectorAll('button').forEach(b=>b.classList.remove('active'));
       btn.classList.add('active');
       const m = btn.dataset.m;
-      if(m === 'year'){
+      if(m==='year'){
         document.getElementById('view-year').classList.add('active');
         document.getElementById('view-month').classList.remove('active');
         document.getElementById('legend-year').style.display='flex';
@@ -417,9 +442,9 @@ function buildMonthChips(){
 }
 
 async function loadYearChart(){
-  const r = await fetch('/api/chart/year');
+  const r    = await fetch('/api/chart/year');
   const data = await r.json();
-  const svg = document.getElementById('yearsvg');
+  const svg  = document.getElementById('yearsvg');
   svg.innerHTML = '';
   const W=900,H=268, padL=60,padR=20,padT=24,padB=30;
   const plotW=W-padL-padR, plotH=H-padT-padB;
@@ -437,25 +462,28 @@ async function loadYearChart(){
   const idealPts = data.map((row,i)=>`${X(i)},${Y(row.target_cum)}`).join(' ');
   svg.appendChild(el('polyline',{points:idealPts, fill:'none', stroke:'#8f8672','stroke-width':1.6,'stroke-dasharray':'1 5','stroke-linecap':'round'}));
 
-  const actualData = data.filter(r => r.pushups_cum !== undefined);
-  const pushPts = actualData.map((row,i)=>`${X(i)},${Y(row.pushups_cum)}`).join(' ');
-  const sqPts = actualData.map((row,i)=>`${X(i)},${Y(row.squats_cum)}`).join(' ');
-  svg.appendChild(el('polyline',{points:pushPts, fill:'none', stroke:'#c9a15a','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
-  svg.appendChild(el('polyline',{points:sqPts, fill:'none', stroke:'#c1603f','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
-
+  const actualData = data.filter(r=>r.pushups_cum !== undefined);
   if(actualData.length){
+    const pushPts = actualData.map((row,i)=>`${X(i)},${Y(row.pushups_cum)}`).join(' ');
+    const sqPts   = actualData.map((row,i)=>`${X(i)},${Y(row.squats_cum)}`).join(' ');
+    const hkPts   = actualData.map((row,i)=>`${X(i)},${Y(row.high_knees_cum)}`).join(' ');
+    svg.appendChild(el('polyline',{points:pushPts,fill:'none',stroke:'#c9a15a','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
+    svg.appendChild(el('polyline',{points:sqPts,  fill:'none',stroke:'#c1603f','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
+    svg.appendChild(el('polyline',{points:hkPts,  fill:'none',stroke:'#5a9e7a','stroke-width':2.5,'stroke-linecap':'round','stroke-linejoin':'round'}));
+
     const todayI = actualData.length - 1;
     const tx = X(todayI);
     svg.appendChild(el('line',{x1:tx,y1:padT,x2:tx,y2:padT+plotH,stroke:'#f5f1e6','stroke-width':1,'stroke-dasharray':'2 4',opacity:'0.2'}));
     const todayLbl = el('text',{x:tx,y:padT-8,'text-anchor':'middle','font-family':'Inter','font-weight':600,'font-size':11,fill:'#f5f1e6'});
     todayLbl.textContent='Today'; svg.appendChild(todayLbl);
-    svg.appendChild(el('circle',{cx:tx, cy:Y(actualData[todayI].pushups_cum), r:4, fill:'#c9a15a', stroke:'#15130f','stroke-width':1.5}));
-    svg.appendChild(el('circle',{cx:tx, cy:Y(actualData[todayI].squats_cum), r:4, fill:'#c1603f', stroke:'#15130f','stroke-width':1.5}));
+    svg.appendChild(el('circle',{cx:tx,cy:Y(actualData[todayI].pushups_cum),   r:4,fill:'#c9a15a',stroke:'#15130f','stroke-width':1.5}));
+    svg.appendChild(el('circle',{cx:tx,cy:Y(actualData[todayI].squats_cum),    r:4,fill:'#c1603f',stroke:'#15130f','stroke-width':1.5}));
+    svg.appendChild(el('circle',{cx:tx,cy:Y(actualData[todayI].high_knees_cum),r:4,fill:'#5a9e7a',stroke:'#15130f','stroke-width':1.5}));
   }
 
   [0,2,4,6,8,10,11].forEach(mi=>{
-    const idx = data.findIndex(r => parseInt(r.date.slice(5,7),10)-1 === mi);
-    if(idx >= 0){
+    const idx = data.findIndex(r=>parseInt(r.date.slice(5,7),10)-1===mi);
+    if(idx>=0){
       const t = el('text',{x:X(idx),y:H-6,'text-anchor':'middle','font-family':'Inter','font-size':10.5,fill:'#6c6353'});
       t.textContent = MONTH_NAMES[mi+1].slice(0,3); svg.appendChild(t);
     }
@@ -463,16 +491,16 @@ async function loadYearChart(){
 }
 
 async function loadMonthChart(m){
-  const r = await fetch('/api/chart/month/'+m);
+  const r    = await fetch('/api/chart/month/'+m);
   const data = await r.json();
-  const svg = document.getElementById('monthsvg');
+  const svg  = document.getElementById('monthsvg');
   svg.innerHTML = '';
   const W=900,H=268, padL=50,padR=20,padT=34,padB=40;
   const plotW=W-padL-padR, plotH=H-padT-padB;
   const n = data.length || 1;
-  const maxVal = Math.max(1, ...data.map(row=>Math.max(row[1],row[2],row[3]))) * 1.1;
+  const maxVal = Math.max(1, ...data.map(row=>Math.max(row[1],row[2],row[3],row[4]))) * 1.1;
   const slot = plotW/n;
-  const bw = Math.min(slot*0.34, 14);
+  const bw   = Math.min(slot*0.28, 11);  // 3 bars per day, slightly narrower
   function X(i){ return padL + i*slot + slot/2; }
   function Y(v){ return padT + plotH - (v/maxVal)*plotH; }
 
@@ -481,18 +509,22 @@ async function loadMonthChart(m){
   zero.textContent='0'; svg.appendChild(zero);
 
   data.forEach((row,i)=>{
-    const [d,target,push,sq]=row;
-    const x0 = X(i)-bw-1;
-    const x1 = X(i)+1;
+    const [d,target,push,sq,hk]=row;
+    // 3 bars: push left, sq center, hk right
+    const x0 = X(i) - bw*1.5 - 1;
+    const x1 = X(i) - bw/2;
+    const x2 = X(i) + bw/2 + 1;
     if(push>0){ const h=plotH-(Y(push)-padT); svg.appendChild(el('rect',{x:x0,y:Y(push),width:bw,height:h,rx:2,fill:'#c9a15a'})); }
-    if(sq>0){ const h=plotH-(Y(sq)-padT); svg.appendChild(el('rect',{x:x1,y:Y(sq),width:bw,height:h,rx:2,fill:'#c1603f'})); }
-    if(d%5===0 || d===1 || d===data.length){
-      const t=el('text',{x:X(i),y:padT+plotH+18,'text-anchor':'middle','font-family':'Inter','font-size':10,fill:'#6c6353'}); t.textContent=d; svg.appendChild(t);
+    if(sq>0)  { const h=plotH-(Y(sq)-padT);   svg.appendChild(el('rect',{x:x1,y:Y(sq),  width:bw,height:h,rx:2,fill:'#c1603f'})); }
+    if(hk>0)  { const h=plotH-(Y(hk)-padT);   svg.appendChild(el('rect',{x:x2,y:Y(hk),  width:bw,height:h,rx:2,fill:'#5a9e7a'})); }
+    if(d%5===0||d===1||d===data.length){
+      const t=el('text',{x:X(i),y:padT+plotH+18,'text-anchor':'middle','font-family':'Inter','font-size':10,fill:'#6c6353'});
+      t.textContent=d; svg.appendChild(t);
     }
   });
 
   const pts = data.map((row,i)=>`${X(i)},${Y(row[1])}`).join(' ');
-  svg.appendChild(el('polyline',{points:pts, fill:'none', stroke:'#8f8672','stroke-width':1.6,'stroke-dasharray':'1 5','stroke-linecap':'round'}));
+  svg.appendChild(el('polyline',{points:pts,fill:'none',stroke:'#8f8672','stroke-width':1.6,'stroke-dasharray':'1 5','stroke-linecap':'round'}));
 
   const title = el('text',{x:padL,y:20,'font-family':'Inter','font-weight':600,'font-size':13,fill:'#f5f1e6'});
   title.textContent = MONTH_NAMES[m] + ' — daily reps';
@@ -501,10 +533,10 @@ async function loadMonthChart(m){
 
 // ---------- badges ----------
 const CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#c9a15a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>';
-const LOCK_SVG = '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="#6c6353" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#6c6353" stroke-width="1.5"/></svg>';
+const LOCK_SVG  = '<svg viewBox="0 0 24 24" fill="none"><rect x="4" y="10" width="16" height="10" rx="2" stroke="#6c6353" stroke-width="1.5"/><path d="M8 10V7a4 4 0 0 1 8 0v3" stroke="#6c6353" stroke-width="1.5"/></svg>';
 
 async function loadBadges(){
-  const r = await fetch('/api/badges');
+  const r    = await fetch('/api/badges');
   const data = await r.json();
   document.getElementById('badge-streak-line').textContent =
     'Current streak: ' + data.current_streak + ' day' + (data.current_streak===1?'':'s') +
